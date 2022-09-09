@@ -54,6 +54,87 @@ async fn get_tickets(data: web::Data<AppState>) -> impl Responder {
       .body(response)
 }
 
+// Get a ticket with the corresponding id
+#[get("/tickets/{id}")]
+async fn get_ticket(id: web::Path<u32>, data: web::Data<AppState>) -> Result<Ticket, ErrNoId> {
+   let ticket_id: u32 = *id;
+   let tickets = data.tickets.lock().unwrap();
+
+   let ticket: Vec<_> = tickets.iter()
+                              .filter(|x| x.id == ticket_id)
+                              .collect();
+
+    if !ticket.is_empty() {
+       Ok(Ticket {
+          id: ticket[0].id,
+          author: String::from(&ticket[0].author)
+       })
+    } else {
+       let response = ErrNoId {
+          id: ticket_id,
+          err: String::from("ticket not found")
+       };
+       Err(response)
+    }
+}
+
+// Update the ticket with the corresponding id
+#[put("/tickets/{id}")]
+async fn update_ticket(id: web::Path<u32>, req: web::Json<Ticket>, 
+                       data: web::Data<AppState>) -> Result<HttpResponse, ErrNoId> {
+   let ticket_id: u32 = *id;
+
+   let new_ticket = Ticket {
+      id: req.id,
+      author: String::from(&req.author),
+   };
+
+   let mut tickets = data.tickets.lock().unwrap();
+   let id_index = tickets.iter().position(|x| x.id == ticket_id);
+
+   match id_index {
+      Some(id) => {
+         let response = serde_json::to_string(&new_ticket).unwrap();
+         tickets[id] = new_ticket;
+         Ok(HttpResponse::Ok()
+                  .content_type(ContentType::json())
+                  .body(response)
+         )
+      },
+      None => {
+         let response = ErrNoId {
+            id: ticket_id,
+            err: String::from("ticket not found")
+         };
+         Err(response)
+      }
+   }
+}
+
+// Delete the ticket with the corresponding id
+#[delete("/tickets/{id}")]
+async fn delete_ticket(id: web::Path<u32>, data: web::Data<AppState>) -> Result<Ticket, ErrNoId> {
+   let ticket_id: u32 = *id;
+
+   let mut tickets = data.tickets.lock().unwrap();
+   let id_index = tickets.iter().position(|x| x.id == ticket_id);
+   
+   match id_index {
+      Some(id) => {
+         let delete_ticket = tickets.remove(id);
+         Ok(delete_ticket)
+      },
+      None => {
+         let response = ErrNoId {
+            id: ticket_id,
+            err: String::from("ticket not found")
+         };
+         Err(response)
+      }
+   }
+}
+
+
 // Implement Responder Trait for Ticket
 impl Responder for Ticket {
    type Body = BoxBody;
@@ -88,3 +169,33 @@ impl Display for ErrNoId {
    }
 }
 
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+
+   let app_state = web::Data::new(AppState {
+      tickets: Mutex::new(vec![
+                  Ticket {
+                     id: 1,
+                     author: String::from("Jane Doe")
+                  },
+                  Ticket {
+                     id: 2,
+                     author: String::from("Patrick Star")
+                    }
+         ])
+      });
+
+   HttpServer::new(move || {
+      App::new()
+         .app_data(app_state.clone())
+         .service(post_ticket)
+         .service(get_ticket)
+         .service(get_tickets)
+         .service(update_ticket)
+         .service(delete_ticket)
+   })
+   .bind(("127.0.0.1", 8082))?
+   .run()
+   .await
+}
