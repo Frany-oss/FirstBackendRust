@@ -21,6 +21,39 @@ struct ErrNoId {
    err: String,
 }
 
+struct AppState {
+   tickets: Mutex<Vec<Ticket>>,
+}
+
+// Create a ticket
+#[post("/tickets")]
+async fn post_ticket(req: web::Json<Ticket>, data: web::Data<AppState>) -> impl Responder {
+   let new_ticket = Ticket {
+      id: req.id,
+      author: String::from(&req.author),
+   };
+   
+   let mut tickets = data.tickets.lock().unwrap();
+
+   let response = serde_json::to_string(&new_ticket).unwrap();
+
+   tickets.push(new_ticket);
+   HttpResponse::Created()
+      .content_type(ContentType::json())
+      .body(response)
+}
+
+// Get all Tickets
+#[get("/tickets")]
+async fn get_tickets(data: web::Data<AppState>) -> impl Responder {
+   let tickets = data.tickets.lock().unwrap();
+   let response = serde_json::to_string(&(*tickets)).unwrap();
+
+   HttpResponse::Ok()
+      .content_type(ContentType::json())
+      .body(response)
+}
+
 // Implement Responder Trait for Ticket
 impl Responder for Ticket {
    type Body = BoxBody;
