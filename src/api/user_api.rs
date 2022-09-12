@@ -1,7 +1,7 @@
 use crate::{models::user_model::User, repository::mongodb_repo::MongoRepo};
 use actix_web::{
-    post,
-    web::{Data, Json},
+    post, get,
+    web::{Data, Json, Path},
     HttpResponse,
 };
 
@@ -17,5 +17,19 @@ pub async fn create_user(db: Data<MongoRepo>, new_user: Json<User>) -> HttpRespo
      match user_detail {
          Ok(user) => HttpResponse::Ok().json(user),
          Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
+    }
+}
+
+#[get("/user/{id}")]
+pub async fn get_user(db: Data<MongoRepo>, path: Path<String>) -> HttpResponse {
+    let id = path.into_inner();
+
+    if id.is_empty() {
+        return HttpResponse::BadRequest().body("Invalid ID");
+    }
+    let user_detail = db.get_user(&id).await;
+    match user_detail {
+        Ok(user) => HttpResponse::Ok().json(user),
+        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
     }
 }
