@@ -2,7 +2,7 @@ use crate::{models::user_model::User, repository::mongodb_repo::MongoRepo};
 use actix_web::{
     post, get, put, delete,
     web::{Data, Json, Path},
-    HttpResponse, guard::Header,
+    HttpResponse,
 };
 use mongodb::bson::oid::ObjectId;
 
