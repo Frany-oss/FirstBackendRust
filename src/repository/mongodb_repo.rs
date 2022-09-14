@@ -1,6 +1,4 @@
-use std::env;
 extern crate dotenv;
-use dotenv::dotenv;
 use mongodb::{
     bson::{extjson::de::Error, oid::ObjectId, doc},
     results::{ InsertOneResult, UpdateResult, DeleteResult},
@@ -16,20 +14,14 @@ pub struct MongoRepo {
 
 impl MongoRepo {
     pub async fn init() -> Self {
-        dotenv().ok();
-        let uri = match env::var("MONGOURI") {
-           Ok(v) => v.to_string(),
-           Err(_) => format!("Error loading env variable"),
-        };
         
-        let client_options = ClientOptions::parse("mongodb+srv://admin:admin123@cluster0.pzhwion.mongodb.net/rustDB?retryWrites=true&w=majority").await.unwrap();
+        let client_options = ClientOptions::parse
+            ("mongodb+srv://admin:admin123@cluster0.pzhwion.mongodb.net/rustDB?retryWrites=true&w=majority")
+            .await.
+            unwrap();
         let client = Client::with_options(client_options).unwrap();
         let db = client.database("rustDB");
         let col: Collection<User> = db.collection("users");
-        
-        for db_name in client.list_database_names(None, None).await.unwrap() {
-            print!("{}", db_name);
-        }
         
         MongoRepo { col }
     }
